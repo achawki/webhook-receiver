@@ -1,5 +1,5 @@
 # Webhook Receiver
-[![Go Report Card](https://goreportcard.com/badge/achawki/webhook-receiver)](https://goreportcard.com/report/achawki/webhook-receiver) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/achawki/webhook-receiver/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/achawki/webhook-receiver?style=flat)](https://goreportcard.com/report/achawki/webhook-receiver) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/achawki/webhook-receiver/blob/master/LICENSE)
 
 Minimal go application to receive messages from webhooks. Content is currently stored in-memory.
 
