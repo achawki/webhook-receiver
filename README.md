@@ -19,6 +19,15 @@ From source. Requires golang `1.14+`
 go run main.go
 ```
 
+### Use server with ngrok
+
+Setup ngrok as described in https://ngrok.com/  
+Run server:
+```
+docker run --publish 8080:8080 --detach achawki/webhook-receiver:latest
+ngrok http 8080
+```
+
 ### Create receiver for webhook
 ```
 curl --header "Content-Type: application/json" --request POST --data '{}' http://localhost:8080/api/webhooks
