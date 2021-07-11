@@ -33,7 +33,7 @@ curl --header "Content-Type: application/json" --request POST --data '{"username
 ```
 #### Create webhook receiver with token
 ```
-curl --header "Content-Type: application/json" --request POST --data '{"tokenName": "Auth-token", "tokenValue": "token"}' http://localhost:8080/api/webhooks
+curl --header "Content-Type: application/json" --request POST --data '{"tokenName": "Auth-Token", "tokenValue": "token"}' http://localhost:8080/api/webhooks
 ```
 
 ### Send messages to webhook receiver
@@ -44,7 +44,7 @@ curl --header "Content-Type: application/json" --request POST --data '{"informat
 
 In case basic auth or token is set, corresponding header needs to be set otherwise `401` will be returned:
 ```
-curl --header "Content-Type: application/json" --header "Auth-token: token"  --request POST  --data '{"information": "content"}' http://localhost:8080/api/webhooks/WEBHOOK_ID/messages
+curl --header "Content-Type: application/json" --header "Auth-Token: token"  --request POST  --data '{"information": "content"}' http://localhost:8080/api/webhooks/WEBHOOK_ID/messages
 ```
 
 ### Show messages for webhook
@@ -55,8 +55,8 @@ curl  http://localhost:8080/api/webhooks/WEBHOOK_ID/messages
 ```
 [
   {
-    "Payload": "{\"information\": \"content\"}",
-    "Headers": {
+    "payload": "{\"information\": \"content\"}",
+    "headers": {
       "Accept": [
         "*/*"
       ],
@@ -70,7 +70,7 @@ curl  http://localhost:8080/api/webhooks/WEBHOOK_ID/messages
         "curl/7.64.1"
       ]
     },
-    "Time": "2020-11-10T20:00:00.000000+01:00"
+    "time": "2020-11-10T20:00:00.000000+01:00"
   },
  ...
 ]

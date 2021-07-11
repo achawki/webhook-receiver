@@ -4,9 +4,9 @@ import "time"
 
 // Message represents a webhook message
 type Message struct {
-	Payload string
-	Headers map[string][]string
-	Time    time.Time
+	Payload string              `json:"payload"`
+	Headers map[string][]string `json:"headers"`
+	Time    time.Time           `json:"time"`
 }
 
 // NewMessage creates a new messages with current timestamp
