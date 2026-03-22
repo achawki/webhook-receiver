@@ -268,36 +268,68 @@ func (s *SQLiteStore) GetMessagePageForWebhook(webhookID string, page int, pageS
 		return nil, &WebhookNotFoundError{WebhookId: webhookID}
 	}
 
-	var totalMessages int
-	countQuery := `SELECT COUNT(*) FROM messages WHERE webhook_id = ?`
-	countArgs := []interface{}{webhookID}
-	if querySuffix, queryArgs := outcomeQueryFilter(outcome); querySuffix != "" {
-		countQuery += querySuffix
-		countArgs = append(countArgs, queryArgs...)
-	}
-	if err := s.db.QueryRow(countQuery, countArgs...).Scan(&totalMessages); err != nil {
+	totalMessages, err := s.countMessagesForWebhook(webhookID, outcome)
+	if err != nil {
 		return nil, err
 	}
 
-	totalPages := 0
-	if totalMessages > 0 {
-		totalPages = (totalMessages + pageSize - 1) / pageSize
-		if page > totalPages {
-			page = totalPages
-		}
-	} else {
-		page = 1
+	page, totalPages, offset := calculateMessagePage(page, pageSize, totalMessages)
+
+	messages, err := s.loadMessagesForWebhook(webhookID, pageSize, offset, outcome)
+	if err != nil {
+		return nil, err
+	}
+
+	messagePage = &model.MessagePage{
+		Messages:        messages,
+		Page:            page,
+		PageSize:        pageSize,
+		TotalMessages:   totalMessages,
+		TotalPages:      totalPages,
+		HasNextPage:     totalPages > 0 && page < totalPages,
+		HasPreviousPage: page > 1 && totalPages > 0,
+	}
+
+	return messagePage, nil
+}
+
+func (s *SQLiteStore) countMessagesForWebhook(webhookID string, outcome model.MessageOutcome) (int, error) {
+	countQuery, countArgs := applyOutcomeFilter(
+		`SELECT COUNT(*) FROM messages WHERE webhook_id = ?`,
+		[]interface{}{webhookID},
+		outcome,
+	)
+
+	var totalMessages int
+	if err := s.db.QueryRow(countQuery, countArgs...).Scan(&totalMessages); err != nil {
+		return 0, err
+	}
+
+	return totalMessages, nil
+}
+
+func calculateMessagePage(page int, pageSize int, totalMessages int) (int, int, int) {
+	if totalMessages == 0 {
+		return 1, 0, 0
+	}
+
+	totalPages := (totalMessages + pageSize - 1) / pageSize
+	if page > totalPages {
+		page = totalPages
 	}
 
 	offset := (page - 1) * pageSize
-	messageQuery := `SELECT method, path, query, payload, headers_json, status_code, error_message, received_at
+	return page, totalPages, offset
+}
+
+func (s *SQLiteStore) loadMessagesForWebhook(webhookID string, pageSize int, offset int, outcome model.MessageOutcome) (messages []*model.Message, err error) {
+	messageQuery, messageArgs := applyOutcomeFilter(
+		`SELECT method, path, query, payload, headers_json, status_code, error_message, received_at
 		 FROM messages
-		 WHERE webhook_id = ?`
-	messageArgs := []interface{}{webhookID}
-	if querySuffix, queryArgs := outcomeQueryFilter(outcome); querySuffix != "" {
-		messageQuery += querySuffix
-		messageArgs = append(messageArgs, queryArgs...)
-	}
+		 WHERE webhook_id = ?`,
+		[]interface{}{webhookID},
+		outcome,
+	)
 	messageQuery += `
 		 ORDER BY row_id DESC
 		 LIMIT ? OFFSET ?`
@@ -313,45 +345,12 @@ func (s *SQLiteStore) GetMessagePageForWebhook(webhookID string, page int, pageS
 		}
 	}()
 
-	messages := []*model.Message{}
+	messages = []*model.Message{}
 	for rows.Next() {
-		var (
-			method       string
-			path         string
-			query        string
-			payload      string
-			headersJSON  string
-			statusCode   int
-			errorMessage string
-			receivedAt   string
-		)
-
-		if err := rows.Scan(&method, &path, &query, &payload, &headersJSON, &statusCode, &errorMessage, &receivedAt); err != nil {
-			return nil, err
+		message, scanErr := scanStoredMessage(rows)
+		if scanErr != nil {
+			return nil, scanErr
 		}
-
-		headers := map[string][]string{}
-		if headersJSON != "" && headersJSON != "null" {
-			if err := json.Unmarshal([]byte(headersJSON), &headers); err != nil {
-				return nil, err
-			}
-		}
-
-		message := &model.Message{
-			Method:       method,
-			Path:         path,
-			Query:        query,
-			Payload:      payload,
-			Headers:      headers,
-			StatusCode:   statusCode,
-			ErrorMessage: errorMessage,
-		}
-		parsedTime, err := time.Parse(sqliteTimeFormat, receivedAt)
-		if err != nil {
-			return nil, err
-		}
-		message.Time = parsedTime
-
 		messages = append(messages, message)
 	}
 
@@ -359,17 +358,60 @@ func (s *SQLiteStore) GetMessagePageForWebhook(webhookID string, page int, pageS
 		return nil, err
 	}
 
-	messagePage = &model.MessagePage{
-		Messages:        messages,
-		Page:            page,
-		PageSize:        pageSize,
-		TotalMessages:   totalMessages,
-		TotalPages:      totalPages,
-		HasNextPage:     totalPages > 0 && page < totalPages,
-		HasPreviousPage: page > 1 && totalPages > 0,
+	return messages, nil
+}
+
+func scanStoredMessage(rows *sql.Rows) (*model.Message, error) {
+	var (
+		method       string
+		path         string
+		query        string
+		payload      string
+		headersJSON  string
+		statusCode   int
+		errorMessage string
+		receivedAt   string
+	)
+
+	if err := rows.Scan(&method, &path, &query, &payload, &headersJSON, &statusCode, &errorMessage, &receivedAt); err != nil {
+		return nil, err
 	}
 
-	return messagePage, nil
+	headers := map[string][]string{}
+	if headersJSON != "" && headersJSON != "null" {
+		if err := json.Unmarshal([]byte(headersJSON), &headers); err != nil {
+			return nil, err
+		}
+	}
+
+	message := &model.Message{
+		Method:       method,
+		Path:         path,
+		Query:        query,
+		Payload:      payload,
+		Headers:      headers,
+		StatusCode:   statusCode,
+		ErrorMessage: errorMessage,
+	}
+	parsedTime, err := time.Parse(sqliteTimeFormat, receivedAt)
+	if err != nil {
+		return nil, err
+	}
+	message.Time = parsedTime
+
+	return message, nil
+}
+
+func applyOutcomeFilter(baseQuery string, baseArgs []interface{}, outcome model.MessageOutcome) (string, []interface{}) {
+	query := baseQuery
+	args := append([]interface{}{}, baseArgs...)
+
+	if querySuffix, queryArgs := outcomeQueryFilter(outcome); querySuffix != "" {
+		query += querySuffix
+		args = append(args, queryArgs...)
+	}
+
+	return query, args
 }
 
 func (s *SQLiteStore) init() error {
