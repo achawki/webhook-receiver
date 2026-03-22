@@ -12,22 +12,22 @@ type WebhookStorage struct {
 	mock.Mock
 }
 
-// GetMessagesForWebhook provides a mock function with given fields: webhookID
-func (_m *WebhookStorage) GetMessagesForWebhook(webhookID string) ([]*model.Message, error) {
-	ret := _m.Called(webhookID)
+// GetMessagePageForWebhook provides a mock function with given fields: webhookID, page, pageSize, outcome
+func (_m *WebhookStorage) GetMessagePageForWebhook(webhookID string, page int, pageSize int, outcome model.MessageOutcome) (*model.MessagePage, error) {
+	ret := _m.Called(webhookID, page, pageSize, outcome)
 
-	var r0 []*model.Message
-	if rf, ok := ret.Get(0).(func(string) []*model.Message); ok {
-		r0 = rf(webhookID)
+	var r0 *model.MessagePage
+	if rf, ok := ret.Get(0).(func(string, int, int, model.MessageOutcome) *model.MessagePage); ok {
+		r0 = rf(webhookID, page, pageSize, outcome)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*model.Message)
+			r0 = ret.Get(0).(*model.MessagePage)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(webhookID)
+	if rf, ok := ret.Get(1).(func(string, int, int, model.MessageOutcome) error); ok {
+		r1 = rf(webhookID, page, pageSize, outcome)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -51,6 +51,29 @@ func (_m *WebhookStorage) GetWebhook(id string) (*model.Webhook, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListWebhooks provides a mock function with given fields:
+func (_m *WebhookStorage) ListWebhooks() ([]*model.Webhook, error) {
+	ret := _m.Called()
+
+	var r0 []*model.Webhook
+	if rf, ok := ret.Get(0).(func() []*model.Webhook); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*model.Webhook)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
