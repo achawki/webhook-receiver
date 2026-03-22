@@ -1,0 +1,13 @@
+.git
+.github
+.data
+tmp
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+coverage.out
+cover.out
+*.test
+dist
+node_modules

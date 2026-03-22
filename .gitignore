@@ -4,3 +4,4 @@ webhook-receiver
 cover.html
 *.swp
 pkg
+webhook-receiver.db
