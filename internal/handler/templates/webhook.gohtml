@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Inspect a temporary webhook receiver and debug accepted or rejected deliveries.">
+  <title>{{.PageTitle}}</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #f3efe7;
+      --panel: rgba(255, 252, 247, 0.9);
+      --ink: #1c1c18;
+      --muted: #5f5b53;
+      --line: rgba(28, 28, 24, 0.12);
+      --accent: #1d4ed8;
+      --accent-soft: rgba(29, 78, 216, 0.1);
+      --shadow: 0 24px 60px rgba(28, 28, 24, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(29, 78, 216, 0.18), transparent 30rem),
+        linear-gradient(180deg, #fcfaf5 0%, var(--bg) 100%);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .back {
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.5rem;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 0.6rem;
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      line-height: 0.95;
+      font-family: "Iowan Old Style", "Palatino Linotype", serif;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .mono, code, pre {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+
+    .endpoint {
+      padding: 1rem;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.7);
+      margin-top: 1rem;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.3rem 0.7rem;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .request-list {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .request-card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.72);
+      overflow: hidden;
+    }
+
+    .request-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.15rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .request-method {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 0.28rem 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .request-status {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.28rem 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      background: rgba(22, 163, 74, 0.12);
+      color: #166534;
+    }
+
+    .request-status.rejected {
+      background: rgba(180, 35, 24, 0.12);
+      color: #b42318;
+    }
+
+    .request-body {
+      padding: 1rem 1.15rem 1.25rem;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--ink);
+    }
+
+    dl {
+      margin: 0 0 1rem;
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 0.6rem 0.9rem;
+      align-items: start;
+    }
+
+    dt {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    dd {
+      margin: 0;
+      word-break: break-word;
+    }
+
+    .headers {
+      display: grid;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+
+    .error-note {
+      margin: 0 0 1rem;
+      padding: 0.85rem 0.95rem;
+      border-radius: 14px;
+      background: rgba(180, 35, 24, 0.08);
+      border: 1px solid rgba(180, 35, 24, 0.18);
+      color: #8a1c11;
+    }
+
+    .header-row {
+      display: grid;
+      gap: 0.2rem;
+      padding: 0.7rem 0.85rem;
+      border-radius: 14px;
+      background: rgba(29, 78, 216, 0.05);
+    }
+
+    .header-row strong {
+      font-size: 0.92rem;
+    }
+
+    .empty {
+      margin: 0;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      color: var(--muted);
+    }
+
+    .pagination-nav {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .pagination-nav a {
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .filter-link {
+      text-decoration: none;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .filter-link.active {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <a class="back" href="/">Back to create page</a>
+    </div>
+
+    <section class="panel">
+      <h1>Webhook {{.Webhook.ID}}</h1>
+      <p>This receiver accepts arbitrary request bodies on the public hook endpoint and will be deleted automatically at {{.Webhook.ExpiresAt}}.</p>
+      <div class="tag-row">
+        {{range .Webhook.AuthModes}}
+        <span class="tag">{{.}}</span>
+        {{end}}
+      </div>
+      <div class="endpoint">
+        <strong>Public ingest</strong>
+        <pre>{{.Webhook.PublicIngestURL}}</pre>
+      </div>
+      <div class="endpoint">
+        <strong>Messages API</strong>
+        <pre>{{.Webhook.MessagesURL}}</pre>
+      </div>
+      <p>Use query parameters like <span class="mono">?page=1&amp;pageSize=25&amp;outcome=rejected</span> when retrieving messages from the API. Only the newest 100 messages are retained for this webhook.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Captured Requests</h2>
+      <div class="filter-row">
+        <a class="filter-link{{if eq .Outcome.Current "all"}} active{{end}}" href="{{.Outcome.AllURL}}">All</a>
+        <a class="filter-link{{if eq .Outcome.Current "accepted"}} active{{end}}" href="{{.Outcome.AcceptedURL}}">Accepted</a>
+        <a class="filter-link{{if eq .Outcome.Current "rejected"}} active{{end}}" href="{{.Outcome.RejectedURL}}">Rejected</a>
+      </div>
+      {{if .Pagination.TotalMessages}}
+      <div class="pagination">
+        <div>Showing page {{.Pagination.CurrentPage}} of {{.Pagination.TotalPages}} for {{.Pagination.Outcome}} messages. Total messages: {{.Pagination.TotalMessages}}</div>
+        <div class="pagination-nav">
+          {{if .Pagination.HasPreviousPage}}
+          <a href="{{.Pagination.PreviousPageURL}}">Previous</a>
+          {{end}}
+          {{if .Pagination.HasNextPage}}
+          <a href="{{.Pagination.NextPageURL}}">Next</a>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+      {{if .Requests}}
+      <div class="request-list">
+        {{range .Requests}}
+        <article class="request-card">
+          <div class="request-header">
+            <div>
+              <span class="request-method">{{.Method}}</span>
+              <span class="request-status{{if .Rejected}} rejected{{end}}">{{.StatusCode}} {{.StatusText}}</span>
+            </div>
+            <div>{{.Time}}</div>
+          </div>
+          <div class="request-body">
+            <dl>
+              <dt>Path</dt>
+              <dd class="mono">{{.Path}}</dd>
+              {{if .Query}}
+              <dt>Query</dt>
+              <dd class="mono">{{.Query}}</dd>
+              {{end}}
+            </dl>
+
+            {{if .ErrorMessage}}
+            <p class="error-note">{{.ErrorMessage}}</p>
+            {{end}}
+
+            {{if .Headers}}
+            <div class="headers">
+              {{range .Headers}}
+              <div class="header-row">
+                <strong>{{.Name}}</strong>
+                <span class="mono">{{.Values}}</span>
+              </div>
+              {{end}}
+            </div>
+            {{end}}
+
+            <pre>{{.Payload}}</pre>
+          </div>
+        </article>
+        {{end}}
+      </div>
+      {{else}}
+      <p class="empty">No requests captured yet.</p>
+      {{end}}
+    </section>
+  </main>
+</body>
+</html>

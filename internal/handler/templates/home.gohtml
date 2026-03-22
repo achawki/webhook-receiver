@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Create a temporary webhook receiver, inspect captured requests, and debug auth failures.">
+  <title>{{.PageTitle}}</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #f7f6f2;
+      --panel: #ffffff;
+      --ink: #171717;
+      --muted: #5f5f5f;
+      --line: #e6e3dc;
+      --accent: #111111;
+      --accent-soft: #f1efea;
+      --danger: #b42318;
+      --shadow: 0 8px 24px rgba(23, 23, 23, 0.04);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 3rem;
+    }
+
+    .hero {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 38rem;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    @media (min-width: 960px) {
+      .grid {
+        grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
+        align-items: start;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 1.35rem;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h2, .panel h3 {
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+    }
+
+    .panel p {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .error {
+      margin-bottom: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 14px;
+      color: var(--danger);
+      background: rgba(180, 35, 24, 0.08);
+      border: 1px solid rgba(180, 35, 24, 0.18);
+    }
+
+    .field {
+      display: grid;
+      gap: 0.45rem;
+      margin-bottom: 1rem;
+    }
+
+    .split {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 640px) {
+      .split {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    label {
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fbfbf9;
+      border-radius: 12px;
+      padding: 0.8rem 0.9rem;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    input::placeholder {
+      color: rgba(92, 88, 79, 0.7);
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      background: var(--accent);
+      color: white;
+      padding: 0.85rem 1.25rem;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .stack {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .card {
+      padding: 1.1rem;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.68);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .card-header h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .mono {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      word-break: break-all;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.3rem 0.65rem;
+      font-size: 0.85rem;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .meta {
+      display: grid;
+      gap: 0.55rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .meta strong {
+      color: var(--ink);
+    }
+
+    .empty {
+      color: var(--muted);
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>Create a temporary webhook receiver.</h1>
+      <p>Create a receiver, optionally add basic auth, a header token, or HMAC SHA-256, then inspect accepted and rejected requests from the UI or JSON API.</p>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <h2>Create Webhook</h2>
+        <p>Incoming requests are delivered to <span class="mono">/hooks/&lt;id&gt;</span>. Every webhook expires automatically 48 hours after creation and keeps the newest 100 captured requests.</p>
+        {{if .Error}}
+        <div class="error">{{.Error}}</div>
+        {{end}}
+        <form action="/webhooks" method="post">
+          <div class="split">
+            <div class="field">
+              <label for="username">Basic auth username</label>
+              <input id="username" name="username" type="text" placeholder="Optional">
+            </div>
+            <div class="field">
+              <label for="password">Basic auth password</label>
+              <input id="password" name="password" type="password" placeholder="Optional">
+            </div>
+          </div>
+
+          <div class="split">
+            <div class="field">
+              <label for="tokenName">Header token name</label>
+              <input id="tokenName" name="tokenName" type="text" placeholder="X-Webhook-Token">
+            </div>
+            <div class="field">
+              <label for="tokenValue">Header token value</label>
+              <input id="tokenValue" name="tokenValue" type="password" placeholder="Optional">
+            </div>
+          </div>
+
+          <div class="split">
+            <div class="field">
+              <label for="hmacHeader">HMAC header</label>
+              <input id="hmacHeader" name="hmacHeader" type="text" placeholder="X-Hub-Signature-256">
+            </div>
+            <div class="field">
+              <label for="hmacSecret">HMAC secret</label>
+              <input id="hmacSecret" name="hmacSecret" type="password" placeholder="Optional">
+            </div>
+          </div>
+
+          <button type="submit">Create Receiver</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <h2>How It Works</h2>
+        <p>Create a webhook, copy the generated URL, and send requests to it from your service or local tools.</p>
+        <p>The detail page shows the ingest URL, the paginated JSON messages endpoint, the exact expiration time, and filters for accepted or rejected deliveries. Once a receiver has more than 100 messages, the oldest ones are deleted automatically.</p>
+        <p class="empty">There is no global receiver list. Keep the webhook detail URL if you want to revisit it later.</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
