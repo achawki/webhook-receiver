@@ -1,5 +1,5 @@
 # Webhook Receiver
-[![Go Report Card](https://goreportcard.com/badge/achawki/webhook-receiver?style=flat)](https://goreportcard.com/report/achawki/webhook-receiver) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/achawki/webhook-receiver/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/achawki/webhook-receiver?style=flat)](https://goreportcard.com/report/achawki/webhook-receiver) [![Deploy](https://github.com/achawki/webhook-receiver/actions/workflows/fly-deploy.yml/badge.svg?branch=master)](https://github.com/achawki/webhook-receiver/actions/workflows/fly-deploy.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/achawki/webhook-receiver/blob/master/LICENSE)
 
 Minimal Go application to receive webhook and HTTP requests, inspect them in a small built-in UI, and persist captured traffic to SQLite.
 
